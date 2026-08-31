@@ -19,7 +19,7 @@ layout spec is in [`UI_LAYOUT.md`](UI_LAYOUT.md).
 
 ## Setup
 
-Requires Python ≥3.10 and Node ≥18.
+Requires Python ≥3.10 and Node ≥24.
 
 ```bash
 make setup
