@@ -1,0 +1,91 @@
+# Self-hosted MLflow tracking stack.
+#
+#   make up      -> brings this up (Postgres metadata + MinIO artifacts + MLflow server)
+#   make up-local-> no Docker: single-process MLflow on SQLite, same URL
+#
+# Both expose the tracking server on 127.0.0.1:5050, so `tracking_uri` never changes.
+# Port 5050 rather than 5000: macOS AirPlay Receiver squats on 5000 (and 5001).
+# Override with `make up MLFLOW_PORT=5555` (or MLFLOW_HOST=... to leave loopback), and
+# point `tracking.tracking_uri` at whatever you chose.
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: trainlab-postgres
+    environment:
+      POSTGRES_USER: mlflow
+      POSTGRES_PASSWORD: mlflow
+      POSTGRES_DB: mlflow
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U mlflow"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    restart: unless-stopped
+
+  minio:
+    image: minio/minio:latest
+    container_name: trainlab-minio
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: minioadmin
+      MINIO_ROOT_PASSWORD: minioadmin
+    ports:
+      - "127.0.0.1:9000:9000"   # S3 API
+      - "127.0.0.1:9001:9001"   # web console
+    volumes:
+      - minio:/data
+    healthcheck:
+      test: ["CMD", "mc", "ready", "local"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    restart: unless-stopped
+
+  # One-shot: create the artifact bucket, then exit.
+  minio-init:
+    image: minio/mc:latest
+    container_name: trainlab-minio-init
+    depends_on:
+      minio:
+        condition: service_healthy
+    entrypoint: >
+      /bin/sh -c "
+      mc alias set local http://minio:9000 minioadmin minioadmin &&
+      mc mb --ignore-existing local/mlflow &&
+      echo 'artifact bucket ready'
+      "
+
+  mlflow:
+    image: ghcr.io/mlflow/mlflow:v3.3.0
+    container_name: trainlab-mlflow
+    depends_on:
+      postgres:
+        condition: service_healthy
+      minio-init:
+        condition: service_completed_successfully
+    environment:
+      MLFLOW_S3_ENDPOINT_URL: http://minio:9000
+      AWS_ACCESS_KEY_ID: minioadmin
+      AWS_SECRET_ACCESS_KEY: minioadmin
+    ports:
+      # Loopback by default: this is a local tool, not a shared service. `make up` passes
+      # MLFLOW_HOST/MLFLOW_PORT through, so the two stacks stay reachable at the same URL.
+      - "${MLFLOW_HOST:-127.0.0.1}:${MLFLOW_PORT:-5050}:5000"   # host -> container 5000
+    command: >
+      /bin/sh -c "
+      pip install --no-cache-dir psycopg2-binary boto3 >/dev/null &&
+      mlflow server
+        --host 0.0.0.0
+        --port 5000
+        --backend-store-uri postgresql://mlflow:mlflow@postgres/mlflow
+        --artifacts-destination s3://mlflow
+        --serve-artifacts
+      "
+    restart: unless-stopped
+
+volumes:
+  pgdata:
+  minio:

@@ -1,0 +1,40 @@
+# Pinned to the versions this repo was built and verified against (2026-07).
+# Loosen if you need to; these are the ones the smoke test passed on.
+
+# --- training ---------------------------------------------------------------
+torch>=2.6,<3
+torchvision>=0.21,<1
+timm>=1.0.20,<2
+torchmetrics>=1.6,<2
+numpy>=1.26
+pillow>=10.3
+
+# --- config / API -----------------------------------------------------------
+pydantic>=2.9,<3
+fastapi>=0.115
+uvicorn[standard]>=0.32
+pyyaml>=6.0
+python-multipart>=0.0.12
+sse-starlette>=2.1
+
+# --- self-supervised pretraining -------------------------------------------
+# Covers SimSiam (heads + NegativeCosineSimilarity) and MAE/MIM
+# (MaskedVisionTransformerTIMM, MAEDecoderTIMM, masking utilities).
+lightly>=1.5.20,<2
+
+# --- tracking / sweeps ------------------------------------------------------
+mlflow>=3.0,<4
+optuna>=4.0,<5
+
+# --- artifacts / misc -------------------------------------------------------
+matplotlib>=3.9
+pandas>=2.2
+psutil>=6.0
+
+# --- optional ---------------------------------------------------------------
+# datasets>=3.0        # only needed for dataset_format="huggingface"
+# psycopg2-binary      # only for the docker-compose Postgres backend store
+# boto3                # only for the docker-compose MinIO artifact store
+
+# --- dev --------------------------------------------------------------------
+pytest>=8.3
