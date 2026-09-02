@@ -353,7 +353,7 @@ which would need a matching implementation.
 
 ---
 
-## Notes on this machine (Apple Silicon)
+## Notes on training machine
 
 The defaults assume CUDA; the runtime resolves them per device and logs every downgrade to
 both the UI and the tracker, so a run record reflects what actually executed:
