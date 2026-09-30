@@ -225,7 +225,7 @@ Sweeps (grid / random / Optuna-TPE, with median or Hyperband pruning) tag every 
 ## Advanced / experimental techniques
 
 Everything in the Advanced group is wired into the training loop — a test
-(`test_every_experimental_field_is_read_by_the_engine`) fails the build if a control is
+(`test_every_experimental_and_schedule_field_is_read_by_the_engine`) fails the build if a control is
 ever added to the schema without runtime code reading it.
 
 Stages run in this order after the main loop: **noise-filter report → pseudo-labeling →
@@ -347,7 +347,7 @@ picks up new ops with no extra work.
 ### Swap the experiment tracker
 
 Implement the `Tracker` protocol in [`trainlab/tracking/base.py`](trainlab/tracking/base.py)
-(eight methods) and return it from `build_tracker`. Training code depends only on the
+(seven methods) and return it from `build_tracker`. Training code depends only on the
 protocol. The Compare tab reads through [`backend/app/registry.py`](backend/app/registry.py),
 which would need a matching implementation.
 
@@ -375,7 +375,7 @@ both the UI and the tracker, so a run record reflects what actually executed:
 make test
 ```
 
-205 tests — 153 Python, 52 frontend — none of which need a dataset or a GPU. Under a
+370 tests — 276 Python, 94 frontend — none of which need a dataset or a GPU. Under a
 minute total.
 
 | File | Covers |
@@ -385,8 +385,18 @@ minute total.
 | `tests/test_engine.py` | Real training runs on a 32px synthetic set: checkpoint selection, top-K retention, zero-step detection, SAM, checkpoint safety, progressive resizing with real workers, the mixup-off epoch boundary, SWA phase guard, SSL end-to-end with default settings |
 | `tests/test_backend.py` | Run supervision against real subprocesses, SSE back-pressure, sweep objective, pruning reports raw values, SIGTERM recorded as cancellation, diff accounting |
 | `tests/test_ssl.py` | SimMIM/MAE tensor geometry and weight transfer (pins timm's internal structure), register-token ViT refusal, smaller-than-one-batch pretraining |
+| `tests/test_resume.py` | `checkpoint.resume_from`: weights, EMA, optimizer, schedule position and best-so-far all continue; class/backbone mismatches and exhausted schedules are refused |
+| `tests/test_pretrained_checkpoint.py` | `model.pretrained_checkpoint`: only the weights carry over, the head moves only with its classes, architecture mismatches are refused by name |
+| `tests/test_broken_images.py` | Unreadable images are skipped, logged by path and deduplicated, and refused past `broken_image_tolerance` |
+| `tests/test_fpr_at_fnr.py` | FPR at a target FNR: threshold math, ties, one-sided data, positive-class resolution by name, which target decides the best checkpoint |
+| `tests/test_progress.py` | Loop instrumentation: the wait/compute split, input-bound detection, throughput, ETA, report throttling |
 | `frontend/src/lib/expr.test.ts` | The `showIf`/`disableIf` grammar, including the forms that must fail loudly |
+| `frontend/src/lib/preset.test.ts` | Applying a preset and deriving the preset label back from the config |
+| `frontend/src/lib/aug.test.ts` | Augmentation rungs write real values into the group, not just the label |
+| `frontend/src/lib/utils.test.ts` | Number-box parsing: a trailing decimal point or comma is not swallowed mid-typing |
 | `frontend/src/components/ParallelCoordinates.test.ts` | Plot degenerate cases and metric-direction colouring |
+| `frontend/src/components/ResizableSplit.test.ts` | Divider drag clamping and restoring a saved position |
+| `frontend/src/components/PretrainedTagSelect.test.ts` | Keeping a config's pretrained tag visible when the catalogue doesn't list it |
 
 Run one side only with `make test-py` or `make test-ui`.
 
